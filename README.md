@@ -1,76 +1,68 @@
-# ProDev Backend Engineering Program 🚀
+# Job Board Backend API 🚀
 
-## Overview
-This repository serves as a comprehensive portfolio and documentation of my journey through the **ProDev Backend Engineering Program**. It contains the source code, exercises, and capstone projects developed during the course.
-
-The primary objective of this program was to master the art of building scalable, robust, and secure backend systems. The focus ranged from low-level database design to high-level architecture using modern tooling and DevOps practices.
+A production-ready, secure, and scalable REST API for a job board platform. This project demonstrates advanced backend engineering practices, including **Role-Based Access Control (RBAC)**, **PostgreSQL Full-Text Search Optimization**, and **Automated API Documentation**.
 
 ---
 
-## 🛠️ Key Technologies & Tools
+## 🏗️ Architecture & Features
 
-During this program, I gained hands-on experience with the following industry-standard technologies:
+This system was built with a "Security First" and "Performance First" mindset, moving beyond basic CRUD operations to handle real-world scale and threats.
 
-* **Languages:** Python (Advanced concepts, Decorators, Generators)
-* **Frameworks:** * **Django:** MVT architecture, ORM, Middleware.
-    * **Django Rest Framework (DRF):** Building RESTful APIs, Serializers, ViewSets.
-* **API Standards:**
-    * **REST:** Stateless architecture, standard HTTP methods.
-    * **GraphQL:** Schema design, Queries, Mutations (using Graphene/Ariadne).
-* **DevOps & Containerization:**
-    * **Docker:** Containerizing applications, `docker-compose` for multi-container environments.
-    * **CI/CD:** Automating testing and deployment pipelines (GitHub Actions/GitLab CI).
+### 1. 🔐 Advanced Security (RBAC)
+* **Custom User Model:** Implemented a scalable `CustomUser` model extending `AbstractUser` to support distinct roles (`Admin`, `Employer`, `Job Seeker`) without bloat.
+* **Row-Level Access Control:**
+    * **Employers:** Can only edit/delete their *own* job postings.
+    * **Applicants:** Can only view their *own* applications.
+    * **Employers:** Can only view applications for *their* specific jobs.
+* **JWT Authentication:** Secure stateless authentication using `simplejwt` with short-lived access tokens.
 
----
+### 2. ⚡ High-Performance Search
+* **The Problem:** Standard SQL `LIKE` queries are slow (O(n)) and fail on complex text.
+* **The Solution:** Implemented **PostgreSQL GIN (Generalized Inverted Index)**.
+* **Implementation:** Used Django's `SearchVector` to combine `title` and `description` fields into a lexeme vector, enabling instant O(1) text search capabilities.
 
-## 🧠 Core Concepts & Learnings
-
-Beyond syntax, this repository demonstrates a deep understanding of backend engineering principles:
-
-### 1. Database Design
-* **Schema Design:** rigorous application of normalization forms to reduce redundancy.
-* **Optimization:** Utilization of indexing and analyzing query performance.
-* **Relationships:** Complex implementation of One-to-Many and Many-to-Many relationships.
-
-### 2. Asynchronous Programming
-* Implementation of **Celery** with **Redis** to handle background tasks (e.g., email sending, data processing) without blocking the main execution thread.
-* Understanding the event loop and non-blocking I/O operations.
-
-### 3. Caching Strategies
-* **Application-Level Caching:** Using Redis/Memcached to cache API responses and reduce database load.
-* **Database Caching:** Optimizing frequently accessed data to improve latency.
-* **Cache Invalidation:** Strategies to ensure data consistency.
+### 3. 📄 Automated Documentation
+* Integrated **Drf-Spectacular** to generate OpenApi 3.0 schema.
+* **Swagger UI:** Fully interactive frontend for testing endpoints directly from the browser.
+* **Custom Schema Extensions:** Manually extended the auto-schema to document complex query parameters like `?search=`.
 
 ---
 
-## ⚔️ Challenges & Solutions
+## 🛠️ Tech Stack
 
-Backend engineering often requires solving complex logic hurdles. Here are specific challenges encountered and how they were resolved:
-
-### Challenge 1: The "N+1" Query Problem
-* **Context:** Fetching related objects in a loop caused exponential database queries, slowing down the API significantly.
-* **Solution:** Implemented Django's `select_related` and `prefetch_related` to optimize database lookups, reducing query count from N+1 to a constant number (usually 1 or 2).
-
-### Challenge 2: Docker Networking Issues
-* **Context:** The Django container could not communicate with the Postgres container during local development.
-* **Solution:** Configured `docker-compose` services to share the same network bridge and utilized the correct service name as the database hostname in the `settings.py` file.
-
-### Challenge 3: Handling JWT Expiration
-* **Context:** Users were abruptly logged out when tokens expired without a refresh mechanism.
-* **Solution:** Implemented a Refresh Token rotation strategy, allowing the client to obtain new access tokens seamlessly without forcing a re-login.
+| Category | Technology | Purpose |
+| :--- | :--- | :--- |
+| **Framework** | Django 5.0 + DRF | Rapid, secure API development |
+| **Database** | PostgreSQL | Relational data + Full-Text Search Engine |
+| **Auth** | JWT (SimpleJWT) | Stateless, secure token-based auth |
+| **Docs** | Drf-Spectacular | Swagger/OpenAPI generation |
+| **Indexing** | GIN Index | High-performance text querying |
 
 ---
+🧪 Testing the API
+Once the server is running, access the interactive documentation:
 
-## 📝 Best Practices & Personal Takeaways
+Swagger UI: http://127.0.0.1:8000/api/docs/
 
-### Best Practices Adopted
-* **Environment Variables:** Strictly keeping sensitive keys (SECRET_KEY, DB_PASSWORD) out of version control using `.env` files.
-* **Testing:** Writing unit and integration tests (Pytest/Unittest) to ensure code reliability before deployment.
-* **Linting:** Adhering to PEP8 standards using tools like `flake8` and `black` for code consistency.
+Redoc: http://127.0.0.1:8000/api/schema/redoc/
 
-### Key Takeaways
-1.  **Scalability First:** Always design the schema and architecture assuming the data will grow.
-2.  **Documentation Matters:** Code is read more often than it is written; clear docstrings and Swagger/OpenAPI documentation are essential.
-3.  **Automation is King:** CI/CD pipelines save hours of manual deployment work and catch bugs early.
+Key Endpoints
+Method,Endpoint,Description,Access
+POST,/api/auth/token/,Get Access/Refresh Tokens,Public
+GET,/api/jobs/postings/,List all jobs,Public
+GET,/api/jobs/postings/?search=python,Search using GIN Index,Public
+POST,/api/jobs/postings/,Create a job,Employer Only
+POST,/api/jobs/applications/,Apply for a job,Authenticated
 
----
+Challenge: The "Invisible Parameter"
+Issue: The Swagger UI was not showing the search parameter because we handled the logic manually in get_queryset.
+
+Solution: Used @extend_schema from drf_spectacular to explicitly inject the search parameter definition into the OpenAPI schema, making it visible and testable for frontend developers.
+
+Challenge: Security vs. Usability
+Issue: We needed Employers to post jobs easily, but we couldn't trust them to manually input their user ID (security risk).
+
+Solution: Overrode perform_create in the ViewSet to automatically inject self.request.user as the employer, ensuring data integrity while keeping the API simple.
+
+📜 License
+This project is part of the ProDev Backend Engineering Program.

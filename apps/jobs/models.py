@@ -1,6 +1,8 @@
 from django.db import models
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
+from django.contrib.postgres.indexes import GinIndex
+from django.contrib.postgres.search import SearchVectorField
 
 class JobCategory(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -32,6 +34,18 @@ class JobPosting(models.Model):
     
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        # 1. Indexes allow O(1) or O(log n) lookups instead of O(n) table scans
+        indexes = [
+            GinIndex(
+                name='job_posting_search_idx', 
+                fields=['title', 'description'], 
+                opclasses=['gin_trgm_ops', 'gin_trgm_ops']
+            ),
+        ]
+        # 2. Orders by newest first by default
+        ordering = ['-created_at']
 
     def __str__(self):
         return f"{self.title} at {self.location}"
